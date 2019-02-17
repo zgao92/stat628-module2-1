@@ -4,7 +4,6 @@
 import ast
 import json
 import os
-import warnings
 
 import pandas as pd
 from tqdm import tqdm
@@ -17,13 +16,13 @@ RAW_FILEPATHS = {
 }
 
 CLEAN_FILEPATHS = {
-    'train': 'data/train.h5',
-    'test': 'data/test.h5'
+    'train': 'data/train.csv',
+    'test': 'data/test.csv'
 }
 
 DICT_FEATURES = [
     # These take a long time to expand, so only select the ones we really want
-    'attributes',
+    # 'attributes',
     # 'hours',
     # 'attributes.Ambience',
     # 'attributes.BusinessParking',
@@ -80,6 +79,12 @@ def transform_raw_files():
         print('Reading {}.json as a DataFrame...'.format(dataset))
         datasets[dataset] = json_to_dataframe(path)
 
+    # Convert columns containing dicts to individual columns
+    print('Expanding dict columns (this takes a while)...')
+    for feature in tqdm(DICT_FEATURES):
+        for dataset in ['business_train', 'business_test']:
+            datasets[dataset] = expand_dict_feature(datasets[dataset], feature)
+
     # Merge the review and business datasets
     print('Merging business and review data...')
     train = pd.merge(datasets['review_train'], datasets['business_train'],
@@ -87,37 +92,30 @@ def transform_raw_files():
     test = pd.merge(datasets['review_test'], datasets['business_test'],
                     how='left', on='business_id')
 
-    # Convert columns containing dicts to individual columns
-    print('Expanding dict columns (this takes a while)...')
-    for feature in tqdm(DICT_FEATURES):
-        test = expand_dict_feature(test, feature)
-        train = expand_dict_feature(train, feature)
-
+    # return datasets['business_train'], datasets['business_test']
     return train, test
 
 
 def read_files(nrows=None):
-    """Gets the cleaned train, test datasets from the HDF5 or JSON files.
+    """Gets the cleaned train, test datasets from the CSV or JSON files.
 
-    HDF5 is a high-performance method of storing tabular data (much faster than
-    CSV). If the HDF5 files containing the cleaned data don't exist yet, they
-    are created after reading and transforming the data in the raw JSON files.
+    If the CSV files containing the cleaned data don't exist yet, they are
+    created after reading and transforming the data in the raw JSON files.
 
     Returns:
         train, test DataFrames.
     """
-    # If the cleaned HDF5 files have already been created, use those
+    # If the cleaned CSV files have already been created, use those
     if all(os.path.exists(path) for path in CLEAN_FILEPATHS.values()):
-        train = pd.read_hdf(CLEAN_FILEPATHS['train'], key='train', stop=nrows)
-        test = pd.read_hdf(CLEAN_FILEPATHS['test'], key='test', stop=nrows)
+        print('Reading CSV files...')
+        train = pd.read_csv(CLEAN_FILEPATHS['train'], nrows=nrows)
+        test = pd.read_csv(CLEAN_FILEPATHS['test'], nrows=nrows)
 
     # Otherwise, create them from the raw JSON files
     else:
         train, test = transform_raw_files()
-        warnings.simplefilter(
-            action='ignore', category=pd.errors.PerformanceWarning)
-        train.to_hdf(CLEAN_FILEPATHS['train'], key='train')
-        test.to_hdf(CLEAN_FILEPATHS['test'], key='train')
+        train.to_csv(CLEAN_FILEPATHS['train'], index=False)
+        test.to_csv(CLEAN_FILEPATHS['test'], index=False)
 
         if nrows is not None:
             train = train.head(nrows)

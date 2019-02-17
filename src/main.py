@@ -10,7 +10,8 @@ os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
 # Load the datasets
 # Set nrows=X to read max X rows from each file, or nrows=None to read all rows
-train, test = read_files(nrows=100000)
+# train, test = read_files(nrows=100000)
+train, test = read_files(nrows=None)
 
 # TODO: everything else
 #   - clean the data / feature engineering
