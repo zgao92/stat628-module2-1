@@ -5,28 +5,18 @@ import ast
 import json
 import os
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-RAW_FILEPATHS = {
-    'business_train': 'data/business_train.json',
-    'business_test': 'data/business_test.json',
-    'review_train': 'data/review_train.json',
-    'review_test': 'data/review_test.json',
-}
-
-CLEAN_FILEPATHS = {
-    'train': 'data/train.csv',
-    'test': 'data/test.csv'
-}
-
-DICT_FEATURES = [
-    # These take a long time to expand, so only select the ones we really want
-    # 'attributes',
-    # 'hours',
-    # 'attributes.Ambience',
-    # 'attributes.BusinessParking',
-    # 'attributes.GoodForMeal',
+# The most frequent 25 columns ordered by # occurrences
+CATEGORIES_TO_KEEP = [
+    'Restaurants', 'Food', 'Nightlife', 'Bars', 'American (Traditional)',
+    'American (New)', 'Breakfast & Brunch', 'Event Planning & Services',
+    'Shopping', 'Sandwiches', 'Beauty & Spas', 'Arts & Entertainment',
+    'Mexican', 'Burgers', 'Pizza', 'Italian', 'Hotels & Travel', 'Seafood',
+    'Coffee & Tea', 'Japanese', 'Home Services', 'Desserts', 'Automotive',
+    'Chinese', 'Sushi Bars'
 ]
 
 
@@ -61,39 +51,82 @@ def expand_dict_feature(df, feature):
         DataFrame with `feature` split up into individual columns.
     """
     df.loc[df[feature].isna(), feature] = '{}'
-    temp_df = pd.DataFrame(df[feature].apply(map_to_dict).to_list())
+    temp_df = pd.DataFrame(df[feature].apply(map_to_dict).to_list(),
+                           dtype=object)
     temp_df = temp_df.add_prefix('{}.'.format(feature))
     return df.drop(feature, axis=1).join(temp_df)
 
 
 def transform_raw_files():
     """Reads the raw JSON files and reformats them into DataFrames.
-    
+
     Returns:
         train, test DataFrames.
     """
+    # Read in the raw JSON files and merge them
+    print('Reading training data...')
+    business_train = json_to_dataframe('data/business_train.json')
+    review_train = json_to_dataframe('data/review_train.json')
 
-    # Read in each raw JSON file
-    datasets = {}
-    for dataset, path in RAW_FILEPATHS.items():
-        print('Reading {}.json as a DataFrame...'.format(dataset))
-        datasets[dataset] = json_to_dataframe(path)
+    print('Merging the business and review training data...')
+    train = pd.merge(review_train, business_train, how='left',
+                     on='business_id')
 
-    # Convert columns containing dicts to individual columns
-    print('Expanding dict columns (this takes a while)...')
-    for feature in tqdm(DICT_FEATURES):
-        for dataset in ['business_train', 'business_test']:
-            datasets[dataset] = expand_dict_feature(datasets[dataset], feature)
+    train = clean_file(train)
 
-    # Merge the review and business datasets
-    print('Merging business and review data...')
-    train = pd.merge(datasets['review_train'], datasets['business_train'],
-                     how='left', on='business_id')
-    test = pd.merge(datasets['review_test'], datasets['business_test'],
-                    how='left', on='business_id')
+    print('Saving the clean training data to CSV...')
+    train.to_csv('data/train.csv', index=False)
 
-    # return datasets['business_train'], datasets['business_test']
-    return train, test
+    print('Reading test data...')
+    business_test = json_to_dataframe('data/business_test.json')
+    review_test = json_to_dataframe('data/review_test.json')
+
+    print('Merging the business and review test data...')
+    test = pd.merge(review_test, business_test, how='left', on='business_id')
+
+    test = clean_file(test)
+
+    print('Saving the clean test data to CSV...')
+    test.to_csv('data/test.csv', index=False)
+
+
+def clean_file(df):
+    """Performs cleaning on the dataset (expands columns, removes NAs, etc.).
+
+    Args:
+        df: Either the train or test DataFrame object.
+
+    Returns:
+        Cleaned DataFrame.
+    """
+    # There are 1301 unique categories, I chose to keep only the top 25
+    print('Expanding categories...')
+
+    # Split each row of 'categories' into a list of categories
+    found_categories = [x.split(',') if isinstance(x, str) else []
+                        for x in df['categories'].to_list()]
+
+    # Strip leading/trailing spaces from these categories
+    found_categories = [[c.strip() for c in l] for l in found_categories]
+
+    # Create a DataFrame of indicator columns for the top categories
+    print('Converting categories to indicator variables...')
+    categories = pd.DataFrame()
+    for category in tqdm(CATEGORIES_TO_KEEP):
+        feature_name = 'category.{}'.format(category.replace(' ', ''))
+        categories[feature_name] = [1 if category in sublist else 0
+                                    for sublist in found_categories]
+
+    # Create an "Other" column for the rest of the categories
+    categories['category.Other'] = 1 - np.clip(categories.sum(axis=1), 0, 1)
+
+    # Merge the categorical indicator features with the main DataFrame
+    df = df.drop('categories', axis=1).join(categories)
+
+    # Drop attributes for now since it takes a long time to read
+    df.drop('attributes', axis=1, inplace=True)
+
+    return df
 
 
 def read_files(nrows=None):
@@ -105,20 +138,15 @@ def read_files(nrows=None):
     Returns:
         train, test DataFrames.
     """
-    # If the cleaned CSV files have already been created, use those
-    if all(os.path.exists(path) for path in CLEAN_FILEPATHS.values()):
-        print('Reading CSV files...')
-        train = pd.read_csv(CLEAN_FILEPATHS['train'], nrows=nrows)
-        test = pd.read_csv(CLEAN_FILEPATHS['test'], nrows=nrows)
+    # Create the clean dataset if it hasn't been done already
+    if not all(os.path.exists(p) for p in ['data/train.csv', 'data/test.csv']):
+        transform_raw_files()
 
-    # Otherwise, create them from the raw JSON files
-    else:
-        train, test = transform_raw_files()
-        train.to_csv(CLEAN_FILEPATHS['train'], index=False)
-        test.to_csv(CLEAN_FILEPATHS['test'], index=False)
+    # Read the clean data files
+    print('Reading CSV files...')
+    train = pd.read_csv('data/train.csv', nrows=nrows, dtype=object)
+    test = pd.read_csv('data/test.csv', nrows=nrows, dtype=object)
 
-        if nrows is not None:
-            train = train.head(nrows)
-            test = test.head(nrows)
+    print('Done!')
 
     return train, test
