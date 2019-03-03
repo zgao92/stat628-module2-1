@@ -20,7 +20,7 @@ def split_text(text):
     """split text to list of words
 
     Args:
-        text: srt, an article
+        text: str, an article
 
     Returns:
         com: a list of words.
