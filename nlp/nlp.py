@@ -69,6 +69,3 @@ word_features2 = vectorizer2.get_feature_names()
 
 
 
-#natural language process 2
-#try spacy package
-import spacy
