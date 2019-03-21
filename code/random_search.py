@@ -21,9 +21,9 @@ check_files()
 
 # Read the sparse data in as train and test
 print('Loading the data...')
-X = sp.sparse.load_npz('data/sparse.npz').tocsr()
+X = sp.sparse.load_npz('data/sparse_full.npz').tocsr()
 y = pd.read_csv('data/train.csv', usecols=['stars']).iloc[:, 0].values
-with open('data/feature_names.pickle', 'rb') as f:
+with open('data/feature_names_full.pickle', 'rb') as f:
     feature_names = pickle.load(f)
 
 train_indices = np.arange(0, 5364626)
@@ -53,7 +53,7 @@ booster_params = {
 
 # Parameter space to search over
 param_dist = {
-    'eta': [0.3],
+    'eta': [0.1],
     'gamma': expon(),
     'max_depth': randint(3, 10),
     'min_child_weight': randint(1, 10),
@@ -61,7 +61,7 @@ param_dist = {
     'lambda': expon(),
     'alpha': expon()
 }
-sampler = ParameterSampler(param_dist, n_iter=30, random_state=1)
+sampler = ParameterSampler(param_dist, n_iter=32, random_state=1)
 
 # Perform the search
 best_score = np.Inf
@@ -72,23 +72,27 @@ print('Testing hyperparameters...')
 for point in tqdm(sampler):
     current_params = best_params.copy()
     current_params.update(point)
+    current_score = 0.
+    for _ in range(3):
+        # Split the data into training and validation sets
+        train_i, valid_i = train_test_split(train_indices,
+                                            test_size=0.2,
+                                            random_state=None)
+        dtrain_train = dtrain.slice(train_i)
+        dtrain_valid = dtrain.slice(valid_i)
 
-    # Split the data into training and validation sets
-    train_i, valid_i = train_test_split(train_indices,
-                                        test_size=0.2,
-                                        random_state=1)
-    dtrain_train = dtrain.slice(train_i)
-    dtrain_valid = dtrain.slice(valid_i)
+        # Train the model using the given parameters
+        bst = xgb.train(params=current_params,
+                        dtrain=dtrain_train,
+                        num_boost_round=100,
+                        evals=[(dtrain_valid, 'valid')],
+                        early_stopping_rounds=10)
 
-    # Train the model using the given parameters
-    bst = xgb.train(params=current_params,
-                    dtrain=dtrain_train,
-                    num_boost_round=20,
-                    evals=[(dtrain_valid, 'valid')],
-                    early_stopping_rounds=10)
+        current_score += np.float(bst.attributes()['best_score'])
+
+    current_score /= 3
 
     # Keep track of the best parameters and their corresponding score
-    current_score = np.float(bst.attributes()['best_score'])
     if current_score < best_score:
         best_score = current_score
         best_params = current_params
