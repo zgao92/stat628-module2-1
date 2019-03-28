@@ -21,14 +21,15 @@ import re
 import sys
 import time
 
+import nltk
 import numpy as np
 import pandas as pd
 import scipy as sp
 
-from nltk.corpus import stopwords
-from nltk.stem.snowball import SnowballStemmer
-from nltk.tokenize import RegexpTokenizer
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from textblob import TextBlob
 from tqdm import tqdm
 
 
@@ -251,35 +252,66 @@ def perform_nlp():
             column = pd.read_csv('data/hotel.csv', usecols=['text'])
         text = column.iloc[:, 0].fillna('').values
 
-        # Get the English stopwords included with NLTK
-        try:
-            stop_words = stopwords.words('english')
-        except LookupError:
-            import nltk
-            nltk.download('stopwords')
-            stop_words = stopwords.words('english')
+        # Make sure the required NLTK resources are downloaded
+        assert all((nltk.download('averaged_perceptron_tagger'),
+                    nltk.download('brown'),
+                    nltk.download('punkt'),
+                    nltk.download('stopwords'),
+                    nltk.download('wordnet')))
 
-        # Custom tokenizer function
-        stemmer = SnowballStemmer('english', ignore_stopwords=True)
-        regex_tokenizer = RegexpTokenizer(r'[a-z\']+')
+        # Official NLTK list of stopwords
+        # stop_words = stopwords.words('english')
 
-        def tokenizer(x):
-            """Finds all words in the text and normalizes the word tenses.
+        # Define the analyzer
+        # tokenizer = RegexpTokenizer(r'[a-z\']+')
+        wnl = WordNetLemmatizer()
+        regex = re.compile(r'[a-z\']+')
 
-            For example, it would map the following words as follows:
-                cook -> cook
-                cooking -> cook
-                cooked -> cook
+        def map_pos(pos):
+            """Convert POS tags from Penn Treebank format to Wordnet format.
+
+            Reference:
+                https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
             """
-            return [stemmer.stem(w)
-                    for w in regex_tokenizer.tokenize(x.lower())]
+            pos_map = {
+                'NN': wordnet.NOUN,
+                'VB': wordnet.VERB,
+                'JJ': wordnet.ADJ,
+                'RB': wordnet.ADV
+            }
+            return pos_map.get(pos[:2], wordnet.NOUN)
+
+        def analyzer(text):
+            """Returns the list of features extracted from review `text`.
+
+            Steps:
+              (1) The review is converted to lowercase and then tokenized using
+                  the above RegexpTokenizer which matches only groups word
+                  characters and apostrophes (').
+              (2) Each word in the review is tagged with its corresponding part
+                  of speech (noun, verb, adjective, etc.). TextBlob does this
+                  using the `pos_tag` function in NLTK.
+              (3) The parts of speech are used to identify and extract noun
+                  phrases in the review.
+              (4) Using the Wordnet database, each word in the review is
+                  lemmatized using its POS information. For example, the words
+                  "cook", "cooked", and "cooking" are all mapped to "cook".
+              (5) The function returns a list of all words and noun phrases.
+
+            Args:
+                text: String containing review text.
+
+            Returns:
+                List of words and phrases.
+            """
+            blob = TextBlob(' '.join(regex.findall(text.lower())))
+            words = [wnl.lemmatize(t[0], map_pos(t[1])) for t in blob.tags]
+            return words + blob.noun_phrases
 
         # Fit the TF/IDF vectorizer to the review text data
         tfidf = TfidfVectorizer(strip_accents='ascii',
-                                analyzer='word',
-                                stop_words=stop_words,
-                                tokenizer=tokenizer,
-                                max_features=10000)
+                                analyzer=analyzer,
+                                max_features=20000)
 
         start = time.time()
         text = tfidf.fit_transform(text)
@@ -287,11 +319,14 @@ def perform_nlp():
         print('Completed TF/IDF vectorization in {} minutes.'.format(
             (end - start) / 60))
 
+        feature_names = [re.sub("'", '_', x)
+                         for x in tfidf.get_feature_names()]
+
         # Save these objects for later use
         with open('data/text_{}.pickle'.format(dataset), 'wb') as f:
             pickle.dump(text, f, pickle.HIGHEST_PROTOCOL)
         with open('data/vocabulary_{}.pickle'.format(dataset), 'wb') as f:
-            pickle.dump(tfidf.get_feature_names(), f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(feature_names, f, pickle.HIGHEST_PROTOCOL)
 
 
 def make_sparse_matrix():
@@ -311,8 +346,8 @@ def make_sparse_matrix():
                 ['text', 'stars', 'attributes'], axis=1)
             test = pd.read_csv('data/test.csv').drop(
                 ['text', 'KaggleID', 'attributes'], axis=1)
-
             df = pd.concat([train, test], ignore_index=True, sort=True)
+            del train, test
         elif dataset == 'hotel':
             df = pd.read_csv('data/hotel.csv').drop(
                 ['text', 'stars', 'attributes'], axis=1)
@@ -327,13 +362,15 @@ def make_sparse_matrix():
             pickle.dump(feature_names, f)
 
         # Join the matrices into a single feature set
-        with open('data/text_{}.pickle'.format(dataset), 'rb') as f:
-            text = pickle.load(f)
+        X = sp.sparse.csr_matrix(df.values)
+
         with open('data/attributes_{}.pickle'.format(dataset), 'rb') as f:
             attributes = pickle.load(f)
+        X = sp.sparse.hstack((X, attributes))
 
-        X = sp.sparse.hstack(
-            (sp.sparse.csr_matrix(df.values), attributes, text))
+        with open('data/text_{}.pickle'.format(dataset), 'rb') as f:
+            text = pickle.load(f)
+        X = sp.sparse.hstack((X, text))
 
         # Save sparse dataset to files
         sp.sparse.save_npz('data/sparse_{}.npz'.format(dataset), X)

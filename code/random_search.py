@@ -1,4 +1,5 @@
-"""Searches for best XGBoost hyperparameters."""
+"""Used to search for the best hyperparameters for the XGBoost model.
+"""
 
 import pickle
 
