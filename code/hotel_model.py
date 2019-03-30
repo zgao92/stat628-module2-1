@@ -60,6 +60,7 @@ top_1000_indices = [i for i, e in enumerate(feature_names)
 hotel = np.hstack([y.reshape(-1, 1),
                    hotel_text,
                    X[:, top_1000_indices].toarray()])
-hotel = pd.DataFrame(hotel, columns=['stars', 'text'] + top_1000_features)
+columns = ['stars', 'text'] + [feature_names[i] for i in top_1000_indices]
+hotel = pd.DataFrame(hotel, columns=columns)
 hotel.to_csv('data/hotel_top_1000_analysis.csv',
              index=False, quoting=csv.QUOTE_ALL)
