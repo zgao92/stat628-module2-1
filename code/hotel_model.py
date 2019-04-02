@@ -27,7 +27,7 @@ with open('data/feature_names_hotel.pickle', 'rb') as f:
 
 # Random forest model
 clf = RandomForestRegressor(n_estimators=500,
-                            max_depth=10,
+                            max_depth=4,
                             max_features='auto',
                             oob_score=True,
                             n_jobs=-1,
