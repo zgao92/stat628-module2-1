@@ -17,9 +17,12 @@ In this project, we analyzed Yelp reviews to determine the most important factor
 **Files:**
 
 * `Executive-Summary.ipynb` is the Jupyter notebook containing a summary of our analysis and business recommendations.
+* `Presentation 1 Slides.pdf` are the slides for our first presentation.
+* `Presentation 2 Slides.pdf` are the slides for our second presentation.
+
 
 **Folders:**
 
 * `code/` contains all of the code we used to generate our results.
-* `data/` contains the final predictions for the full dataset. In order to recreate our results, the raw .json files should be placed here.
+* `data/` contains the final predictions for the full dataset as well as some of the phrases we extracted. The rest of the data was too large to keep in this repository. In order to recreate our results, the raw .json files should be placed here.
 * `images/` contains .png files for the visualizations we created and included in our executive summary and presentation slides.

@@ -207,41 +207,52 @@ def plot_food_cloud():
     plt.axis("off")
     plt.show()
 
-#make bar plot to the customer sevice
-p = pd.read_csv('./data/inportance_phrases_hotel.csv',index_col=0)
-neg_service = p.loc[['horrible experience','bad service','poor service',
-                     'poor customer service','bad customer service','horrible customer service',
-                     'dont care','didnt care','bad attitude','rude unhelpful','rude staff',
-                     'super rude','rude people','long line','front line','huge line','eye contact',
-                     'poor management','wrong information']]
-pos_service = p.loc[['great service','friendly service','excellent service','outstanding service',
-                     'wonderful service','beautiful service','great room service','incredible service',
-                     'amazing service','excellent customer service','friendly helpful','nice helpful',
-                     'super helpful','super friendly helpful','professional helpful','friendly informative',
-                     'courteous helpful','great staff','amazing staff','wonderful staff','super friendly staff',
-                     'fantastic staff','friendly staff','friendly helpful staff','perfect staff','awesome staff',
-                     'great people','beautiful people','great guy','friendly people','amazing people','wonderful people']]
-# set width of bar
-barWidth = 0.4
 
-# set height of bar
-bars1 = neg_service.sum(axis=0)[0:5]
-bars2 = pos_service.sum(axis=0)[0:5]
- 
-# Set position of bar on X axis
-r1 = np.arange(len(bars1))
-r2 = [x + barWidth for x in r1]
- 
-# Make the plot
-plt.bar(r2, bars2, color='seagreen', width=barWidth, edgecolor='white', label='positive words/phrases')
-plt.bar(r1, bars1, color='crimson', width=barWidth, edgecolor='white', label='negative words/phrases')
+def plot_staff_training_barplot():
+    # Make bar plot for the customer sevice
+    p = pd.read_csv('data/importance_phrases_hotel.csv', index_col=0)
+    neg_service = p.loc[
+        ['horrible experience', 'bad service', 'poor service',
+         'poor customer service', 'bad customer service',
+         'horrible customer service', 'dont care',
+         'didnt care', 'bad attitude', 'rude unhelpful', 'rude staff',
+         'super rude', 'rude people', 'long line', 'front line', 'huge line',
+         'eye contact', 'poor management', 'wrong information']]
+    pos_service = p.loc[
+        ['great service', 'friendly service', 'excellent service',
+         'outstanding service', 'wonderful service', 'beautiful service',
+         'great room service', 'incredible service', 'amazing service',
+         'excellent customer service', 'friendly helpful', 'nice helpful',
+         'super helpful', 'super friendly helpful', 'professional helpful',
+         'friendly informative', 'courteous helpful', 'great staff',
+         'amazing staff', 'wonderful staff', 'super friendly staff',
+         'fantastic staff', 'friendly staff', 'friendly helpful staff',
+         'perfect staff', 'awesome staff', 'great people', 'beautiful people',
+         'great guy', 'friendly people', 'amazing people', 'wonderful people']]
+    # set width of bar
+    bar_width = 0.4
 
-# Add xticks on the middle of the group bars
-plt.xlabel('group')
-plt.xticks([r + barWidth for r in range(len(bars1))], ['1', '2', '3', '4', '5'])
-plt.ylabel('frenquency rate')
-plt.title('customer service', fontweight='bold',fontsize=20)
- 
-# Create legend & Show graphic
-plt.legend()
-plt.show()
+    # set height of bar
+    bars1 = neg_service.sum(axis=0)[0:5]
+    bars2 = pos_service.sum(axis=0)[0:5]
+
+    # Set position of bar on X axis
+    r1 = np.arange(len(bars1))
+    r2 = [x + bar_width for x in r1]
+
+    # Make the plot
+    plt.bar(r2, bars2, color='seagreen', width=bar_width, edgecolor='white',
+            label='positive words/phrases')
+    plt.bar(r1, bars1, color='crimson', width=bar_width, edgecolor='white',
+            label='negative words/phrases')
+
+    # Add xticks on the middle of the group bars
+    plt.xlabel('group')
+    plt.xticks([r + bar_width
+                for r in range(len(bars1))], ['1', '2', '3', '4', '5'])
+    plt.ylabel('frenquency rate')
+    plt.title('customer service', fontweight='bold', fontsize=20)
+
+    # Create legend & Show graphic
+    plt.legend()
+    plt.show()

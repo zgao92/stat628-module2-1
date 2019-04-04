@@ -40,12 +40,12 @@ general_params = {
 }
 booster_params = {
     'eta': 0.1,  # default=0.3
-    'gamma': 0.,  # default=0.; larger => more conservative
-    'max_depth': 6,  # default=6
-    'min_child_weight': 1,  # default=1; larger => more conservative
-    'subsample': 0.5,  # default=1.; proportion of points to sample each round
-    'lambda': 1,  # default=1, L2 regularization
-    'alpha': 0,  # default=0, L1 regularization
+    'gamma': 0.5940143639429266,  # default=0.; larger => more conservative
+    'max_depth': 9,  # default=6
+    'min_child_weight': 8,  # default=1; larger => more conservative
+    'subsample': 0.5597452339903584,  # default=1.; % data to sample each round
+    'lambda': 2.392460601437968,  # default=1, L2 regularization
+    'alpha': 0.10895140695069858,  # default=0, L1 regularization
 }
 bst = xgb.train(params={**general_params, **booster_params},
                 dtrain=dtrain,

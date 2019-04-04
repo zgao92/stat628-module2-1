@@ -1,16 +1,12 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar 30 21:13:59 2019
+"""This file is the summary of all the code in the jupyter notebook.
 
-This file is the summary of all the code in the jupyter notebook.
 To:
     1. get few plots for data overview
     2. translate foreign language into english
     3. extract phrases for each reviews
     4. get important negative/positive phrases by spearman correlation
-    5. output importance_phrases_hotel.csv file which include the frequency 
-       rate of phrases under 
+    5. output importance_phrases_hotel.csv file which include the frequency
+       rate of phrases under
        each stars level and their spearman correlation coefficient.
 
 @author: Ke Tang
@@ -77,7 +73,7 @@ def text_process(text):
         s = s
     nopunc = [char for char in s if char not in string.punctuation]
     nopunc = ''.join(nopunc)
-    
+
     return [word for word in nopunc.split() if word.lower() not in stopwords.words('english')]
 
 def get_phrases(x):
@@ -99,7 +95,7 @@ def count_fre(stars, ch, df):
 
 def str_to_list(s):
     """
-    transform a string to a list, e.g. "[a,b,c]" to [a,b,c] 
+    transform a string to a list, e.g. "[a,b,c]" to [a,b,c]
     """
     s = s.replace("u'", "")
     s = s.replace("'", "")
@@ -169,7 +165,7 @@ p = p.fillna(0)
 p.ix[:,'1':'5'] = p.ix[:,'1':'5']/Counter(hotel['stars']).values()
 #w.ix[:,'1':'5'] = w.ix[:,'1':'5']/Counter(hotel['stars']).values()
 
-p['correlation'] = p.apply(get_spearman_corr,axis=1) 
+p['correlation'] = p.apply(get_spearman_corr,axis=1)
 #w['correlation'] = w.apply(get_spearman_corr,axis=1)
 
 p.to_csv('./data/importance_phrases_hotel.csv',index=True)
